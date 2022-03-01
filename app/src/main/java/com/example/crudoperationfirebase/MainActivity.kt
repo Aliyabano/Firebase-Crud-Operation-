@@ -4,6 +4,7 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.Toast
 import com.example.crudoperationfirebase.Model.PersonDataModel
+import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.QuerySnapshot
@@ -27,14 +28,28 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        btnUpdateData.setOnClickListener {
-            updateData()
-        }
 
         btnRetrieveData.setOnClickListener {
             retrieveData()
         }
+    }
 
+    private fun retrieveData() = CoroutineScope(Dispatchers.Main).launch {
+        try {
+            val querySnapshot = personData.get().await()
+            val sb = StringBuilder()
+            for (document in querySnapshot.documents) {
+                val person = document.toObject<PersonDataModel>()
+                sb.append("$person\n")
+            }
+            withContext(Dispatchers.Main) {
+                textResult.text = sb.toString()
+            }
+        } catch (e: Exception) {
+            withContext(Dispatchers.Main) {
+                Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_SHORT).show()
+            }
+        }
 
         btnSubmit.setOnClickListener {
             val name = edtName.text.toString()
@@ -51,67 +66,46 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateData() = CoroutineScope(Dispatchers.Main).launch {
+    private fun data(personDataModel: PersonDataModel) = CoroutineScope(Dispatchers.IO).launch {
         try {
-            personData.addSnapshotListener { QuerySnapshot, FirebaseFirestoreException ->
-                FirebaseFirestoreException?.let {
-                    Toast.makeText(this@MainActivity, "Successfully Updated", Toast.LENGTH_SHORT).show()
-                    return@addSnapshotListener
-                }
-                QuerySnapshot?.let {
-                    var sb = StringBuilder()
-                    for (documents in it!!) {
-                        var user = documents.toObject<PersonDataModel>()
-                        sb.append("$user")
-                    }
-//                    edtName?.setText("$sb")
-//                    edtProfile?.setText("$sb")
-//                    edtHobby?.setText("$sb")
-//                    edtLocation?.setText("$sb")
-
-                }
+            personData.add(personDataModel).await()
+            withContext(Dispatchers.Main) {
+                Toast.makeText(this@MainActivity, "Successfully saved", Toast.LENGTH_SHORT).show()
             }
+
         } catch (e: Exception) {
             withContext(Dispatchers.Main) {
                 Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_SHORT).show()
             }
         }
+        btnUpdateData.setOnClickListener {
+            val name = edtName.text.toString()
+            val profile = edtProfile.text.toString()
+            val hobby = edtHobby.text.toString()
+            val location = edtLocation.text.toString()
+
+            updateData(name, profile, hobby, location)
+
+        }
     }
 
-    private fun retrieveData() = CoroutineScope(Dispatchers.Main).launch {
-        try {
-            val querySnapshot = personData.get().await()
-            val sb = StringBuilder()
-            for (document in querySnapshot.documents)
-            {
-                val person = document.toObject<PersonDataModel>()
-                sb.append("$person\n")
-            }
-            withContext(Dispatchers.Main){
-                textResult.text = sb.toString()
-            }
-        }
-        catch (e:Exception){
-            withContext(Dispatchers.Main){
-                Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_SHORT).show()
-            }
-        }
+    private fun updateData(name: String, profile: String, hobby: String, location: String) {
 
-
-    }
-
-    private fun data(personDataModel: PersonDataModel) = CoroutineScope(Dispatchers.IO).launch{
-        try {
-            personData.add(personDataModel).await()
-            withContext(Dispatchers.Main){
-                Toast.makeText(this@MainActivity, "Successfully saved", Toast.LENGTH_SHORT).show()
-            }
-
-        }
-        catch (e:Exception){
-            withContext(Dispatchers.Main){
-                Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_SHORT).show()
-            }
+        val personData = FirebaseDatabase.getInstance().getReference("Data")
+        val person = mapOf<String, Any>(
+            "name" to name,
+            "profile" to profile,
+            "hobby" to hobby,
+            "location" to location
+        )
+        personData.child(name).updateChildren(person).addOnSuccessListener {
+            Toast.makeText(this, "Successfully Updated", Toast.LENGTH_SHORT).show()
+        }.addOnFailureListener {
+            Toast.makeText(
+                this,
+                "Failed to Update",
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 }
