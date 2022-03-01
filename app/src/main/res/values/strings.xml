@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">CrudOperation(Firebase)</string>
+    <string name="profile">Profile</string>
+    <string name="hobby">Hobbies</string>
+    <string name="location">Location</string>
+    <string name="submit">Save Data</string>
+    <string name="retrieve">Retrieve Data</string>
+    <string name="update">Update</string>
+</resources>
